@@ -1,0 +1,29 @@
+### Products API Routes
+
+### Create New Product
+POST http://localhost:3000/api/products
+Content-Type: application/json
+
+{
+  "title": "New Product",
+  "price": 99.99,
+  "description": "Product Description"
+}
+
+### Get All Products
+GET http://localhost:3000/api/products
+
+### Get Single Product
+GET http://localhost:3000/api/products/1
+
+### Update Product
+PUT http://localhost:3000/api/products/1
+Content-Type: application/json
+
+{
+  "title": "Updated Product Title",
+  "price": 89.99
+}
+
+### Delete Product
+DELETE http://localhost:3000/api/products/1

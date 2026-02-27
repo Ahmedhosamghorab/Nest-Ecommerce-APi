@@ -1,0 +1,28 @@
+### Reviews API Routes
+
+### Create New Review
+POST http://localhost:3000/api/reviews
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "comment": "Great product!"
+}
+
+### Get All Reviews
+GET http://localhost:3000/api/reviews
+
+### Get Single Review
+GET http://localhost:3000/api/reviews/1
+
+### Update Review
+PUT http://localhost:3000/api/reviews/1
+Content-Type: application/json
+
+{
+  "rating": 4,
+  "comment": "Good product, but could be better."
+}
+
+### Delete Review
+DELETE http://localhost:3000/api/reviews/1

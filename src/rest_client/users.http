@@ -1,0 +1,32 @@
+### Users API Routes
+
+### Register a new user
+POST http://localhost:3000/api/users/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123",
+  "username": "Test User"
+}
+
+### Login
+POST http://localhost:3000/api/users/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+### Get User Profile (Requires Auth)
+POST http://localhost:3000/api/users/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MywidXNlclR5cGUiOiJub3JtYWxfdXNlciIsImlhdCI6MTc3MjE5OTczMiwiZXhwIjoxNzcyODA0NTMyfQ.syDyHZ3M0EdsoJOCsy4CE0m9CXm-UdhuyMY_Se9qAdE
+
+### Get All Users (Admin Only)
+GET http://localhost:3000/api/users
+Authorization: Bearer {{token}}
+
+### Delete User (Admin or Normal User)
+GET http://localhost:3000/api/users/1
+Authorization: Bearer {{token}}

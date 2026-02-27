@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,18 +7,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './user.entity';
 import { Repository } from 'typeorm';
 import { RegisterDto } from './dtos/register.dto';
-import bcrypt from 'node_modules/bcryptjs';
 import { LoginDto } from './dtos/login.dto';
-import { JwtService } from '@nestjs/jwt';
 import { AccessToken, JWTPayload } from 'src/utils/types';
-import type { Response } from 'express';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { UserType } from 'src/utils/enums';
+import { AuthService } from './auth.service';
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
-    private readonly jwtService: JwtService,
+    private readonly authService: AuthService,
   ) {}
   /**
    * create new user
@@ -27,19 +24,7 @@ export class UserService {
    * @returns (JWT) access token
    */
   public async register(registerDto: RegisterDto): Promise<AccessToken> {
-    const { email, password, username } = registerDto;
-    const userFromDb = await this.userRepository.findOne({ where: { email } });
-    if (userFromDb) throw new BadRequestException('user already exist');
-    const hashedPassword = await this.hashPassword(password);
-    const newUser = this.userRepository.create({
-      email,
-      password: hashedPassword,
-      username,
-    });
-    await this.userRepository.save(newUser);
-    const payload: JWTPayload = { id: newUser.id, userType: newUser.userType };
-    const accessToken = await this.generateJWT(payload);
-    return { accessToken };
+    return this.authService.register(registerDto);
   }
   /**
    * login user
@@ -47,14 +32,7 @@ export class UserService {
    * @returns (JWT) access token
    */
   public async login(loginDto: LoginDto): Promise<AccessToken> {
-    const { email, password } = loginDto;
-    const user = await this.userRepository.findOne({ where: { email } });
-    if (!user) throw new BadRequestException('wrong credentials');
-    const isPasswordMatch = await bcrypt.compare(password, user.password);
-    if (!isPasswordMatch) throw new BadRequestException('wrong credentials');
-    const payload: JWTPayload = { id: user.id, userType: user.userType };
-    const accessToken = await this.generateJWT(payload);
-    return { accessToken };
+    return this.authService.login(loginDto);
   }
   /**
    * get current user
@@ -83,7 +61,7 @@ export class UserService {
     const user = await this.getCurrentUser(id);
     const { username, password } = updateUserDto;
     user.username = username ?? user.username;
-    const hashedPassword = await this.hashPassword(password);
+    const hashedPassword = await this.authService.hashPassword(password);
     if (password) {
       user.password = hashedPassword;
     }
@@ -103,24 +81,5 @@ export class UserService {
       return { message: 'product deleted successfully' };
     }
     throw new ForbiddenException('Access denied');
-  }
-
-  /**
-   * generate json web token
-   * @param payload payload needed for generating token
-   * @returns token
-   */
-  private generateJWT(payload: JWTPayload): Promise<string> {
-    return this.jwtService.signAsync(payload);
-  }
-  /**
-   * hashing user password
-   * @param password user password
-   * @returns hashed password
-   */
-  private async hashPassword(password: string): Promise<string> {
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    return hashedPassword;
   }
 }
