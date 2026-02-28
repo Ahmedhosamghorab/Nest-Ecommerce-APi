@@ -6,7 +6,7 @@ import { UserService } from './users.service';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { StringValue } from 'ms';
-import { AuthService } from './auth.service';
+import { AuthProvider } from './auth.provider';
 @Module({
   controllers: [UsersController],
   imports: [
@@ -24,6 +24,7 @@ import { AuthService } from './auth.service';
       },
     }),
   ],
-  providers: [UserService, AuthService],
+  exports: [UserService],
+  providers: [UserService, AuthProvider],
 })
 export class UsersModule {}

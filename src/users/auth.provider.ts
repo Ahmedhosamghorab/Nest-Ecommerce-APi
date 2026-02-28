@@ -8,7 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { AccessToken, JWTPayload } from 'src/utils/types';
 import { InjectRepository } from '@nestjs/typeorm';
 @Injectable()
-export class AuthService {
+export class AuthProvider {
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,

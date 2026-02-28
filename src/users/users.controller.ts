@@ -3,7 +3,6 @@ import {
   Post,
   Body,
   UseGuards,
-  Req,
   Get,
   Param,
   UseInterceptors,
@@ -12,12 +11,12 @@ import {
 import { UserService } from './users.service';
 import { RegisterDto } from './dtos/register.dto';
 import { LoginDto } from './dtos/login.dto';
-import type { Request } from 'express';
 import { AuthGuard } from './guards/auth.guard';
-import { JWTPayload } from 'src/utils/types';
+import type { JWTPayload } from 'src/utils/types';
 import { Roles } from './decorators/user-role.decorator';
 import { UserType } from 'src/utils/enums';
 import { AuthRolesGuard } from './guards/auth-roles.guard';
+import { CurrentUser } from './decorators/current-user.decorator';
 @Controller('api/users')
 export class UsersController {
   constructor(private readonly usersService: UserService) {}
@@ -34,9 +33,7 @@ export class UsersController {
   // Post: ~/api/users/profile
   @Post('profile')
   @UseGuards(AuthGuard)
-  @UseInterceptors(ClassSerializerInterceptor)
-  public getUserProfile(@Req() request: Request) {
-    const payload = request['user'] as JWTPayload;
+  public getUserProfile(@CurrentUser() payload: JWTPayload) {
     return this.usersService.getCurrentUser(payload.id);
   }
   // Get: ~/api/users
@@ -51,8 +48,10 @@ export class UsersController {
   @Get(':id')
   @Roles(UserType.ADMIN, UserType.NORMAL_USER)
   @UseGuards(AuthRolesGuard)
-  public deleteUser(@Param('id') id: number, @Req() request: Request) {
-    const payload = request['user'] as JWTPayload;
+  public deleteUser(
+    @Param('id') id: number,
+    @CurrentUser() payload: JWTPayload,
+  ) {
     return this.usersService.delete(id, payload);
   }
 }

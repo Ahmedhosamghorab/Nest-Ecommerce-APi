@@ -11,12 +11,12 @@ import { LoginDto } from './dtos/login.dto';
 import { AccessToken, JWTPayload } from 'src/utils/types';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { UserType } from 'src/utils/enums';
-import { AuthService } from './auth.service';
+import { AuthProvider } from './auth.provider';
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
-    private readonly authService: AuthService,
+    private readonly authService: AuthProvider,
   ) {}
   /**
    * create new user
