@@ -1,7 +1,7 @@
 import { NotFoundException, Injectable } from '@nestjs/common';
 import { CreateProductDto } from './dtos/create-product.dto';
 import { UpdateProductDto } from './dtos/update-product.dto';
-import { Repository } from 'typeorm';
+import { Repository, Like, Between } from 'typeorm';
 import { Product } from './product.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserService } from 'src/users/users.service';
@@ -21,6 +21,7 @@ export class ProductService {
     const user = await this.userService.getCurrentUser(userId);
     const newProduct = this.productRepositry.create({
       ...dto,
+      title: dto.title.toLowerCase(),
       user,
     });
     return this.productRepositry.save(newProduct);
@@ -29,8 +30,14 @@ export class ProductService {
    * Get All Products
    * @returns
    */
-  public getAll() {
-    return this.productRepositry.find();
+  public getAll(title?: string, minPrice?: string, maxPrice?: string) {
+    const filters = {
+      ...(title ? { title: Like(`%${title.toLowerCase()}%`) } : {}),
+      ...(minPrice && maxPrice
+        ? { price: Between(parseInt(minPrice), parseInt(maxPrice)) }
+        : {}),
+    };
+    return this.productRepositry.find({ where: filters });
   }
   /**
    * Get One Product By Id
