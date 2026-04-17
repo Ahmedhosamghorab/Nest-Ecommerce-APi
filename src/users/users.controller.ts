@@ -38,8 +38,8 @@ export class UsersController {
   }
   // Get: ~/api/users
   @Get()
-  @Roles(UserType.ADMIN)
   @UseGuards(AuthRolesGuard)
+  @Roles(UserType.ADMIN)
   @UseInterceptors(ClassSerializerInterceptor)
   public getAllUsers() {
     return this.usersService.getAll();

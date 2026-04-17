@@ -5,15 +5,15 @@ import {
   Length,
   Min,
   Max,
+  MinLength,
 } from 'class-validator';
 export class CreateReviewDto {
   @IsNotEmpty()
   @IsNumber()
-  @Min(0)
+  @Min(1)
   @Max(5)
   rate: number;
-  @IsNotEmpty()
   @IsString()
-  @Length(1, 255)
+  @MinLength(1)
   comment: string;
 }

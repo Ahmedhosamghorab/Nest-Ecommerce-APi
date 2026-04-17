@@ -4,19 +4,29 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReviewDto } from './dtos/create-review.dto';
 import { UpdateReviewDto } from './dtos/update-review.dto';
+import { UserService } from 'src/users/users.service';
+import { ProductService } from 'src/products/products.service';
 @Injectable()
 export class ReviewService {
   constructor(
     @InjectRepository(Review)
     private readonly reviewRepository: Repository<Review>,
+    private readonly usersService: UserService,
+    private readonly productsService: ProductService,
   ) {}
   /**
    *
    * @param dto
    * @returns
    */
-  public createNewReview(dto: CreateReviewDto) {
-    const newReview = this.reviewRepository.create(dto);
+  public async createNewReview(
+    productId: number,
+    userId: number,
+    dto: CreateReviewDto,
+  ) {
+    const user = await this.usersService.getCurrentUser(userId);
+    const product = await this.productsService.getOneBy(productId);
+    const newReview = this.reviewRepository.create({ ...dto, user, product });
     return this.reviewRepository.save(newReview);
   }
   /**

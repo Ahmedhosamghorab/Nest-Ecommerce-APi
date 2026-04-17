@@ -19,8 +19,11 @@ export class AuthRolesGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
+
     if (!roles || roles.length < 1) return false;
+
     const request: Request = context.switchToHttp().getRequest();
+
     const [type, token] = request.headers.authorization?.split(' ') ?? [];
     if (token && type === 'Bearer') {
       try {
@@ -28,9 +31,10 @@ export class AuthRolesGuard implements CanActivate {
           secret: this.configService.get<string>('JWT_SECRET'),
         });
         const user = await this.userService.getCurrentUser(payload.id);
+
         if (!user) return false;
         if (roles.includes(user.userType)) {
-          request['user'] = payload;
+          request['user'] = user;
           return true;
         }
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
