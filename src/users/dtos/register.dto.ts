@@ -18,4 +18,7 @@ export class RegisterDto {
   @IsString()
   @MaxLength(255)
   username: string;
+  // @IsString()
+  // @MaxLength(255)
+  // profileImage: string;
 }
