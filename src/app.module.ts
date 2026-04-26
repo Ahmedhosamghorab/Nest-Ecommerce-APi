@@ -7,6 +7,7 @@ import { Product } from './products/product.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Review } from './reviews/review.entity';
 import { User } from './users/user.entity';
+import { UploadsModule } from './uploads/uploads.module';
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
@@ -28,6 +29,7 @@ import { User } from './users/user.entity';
     ProductsModule,
     ReviewsModule,
     UsersModule,
+    UploadsModule,
   ],
   exports: [],
   providers: [],
