@@ -9,7 +9,7 @@ import { User } from './user.entity';
 import { Repository } from 'typeorm';
 import { RegisterDto } from './dtos/register.dto';
 import { LoginDto } from './dtos/login.dto';
-import { AccessToken, JWTPayload } from 'src/utils/types';
+import { JWTPayload } from 'src/utils/types';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { UserType } from 'src/utils/enums';
 import { AuthProvider } from './auth.provider';
@@ -30,7 +30,7 @@ export class UserService {
    * @param registerDto - The data required for user registration (username, password, etc.).
    * @returns A promise that resolves to an access token (JWT).
    */
-  public async register(registerDto: RegisterDto): Promise<AccessToken> {
+  public async register(registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
@@ -39,7 +39,7 @@ export class UserService {
    * @param loginDto - The credentials required for login (username, password).
    * @returns A promise that resolves to an access token (JWT).
    */
-  public async login(loginDto: LoginDto): Promise<AccessToken> {
+  public async login(loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
@@ -130,5 +130,25 @@ export class UserService {
     unlinkSync(imageFilePath);
     user.profileImage = null;
     return this.userRepository.save(user);
+  }
+
+  /**
+   * Verifies a user's email address using a verification token.
+   * @param userId - The ID of the user to verify.
+   * @param verificationToken - The token sent to the user's email.
+   * @returns A promise that resolves to a success message.
+   * @throws NotFoundException if no token is found for the user.
+   * @throws BadRequestException if the provided token is invalid.
+   */
+  public async verifyEmail(userId: number, verificationToken: string) {
+    const user = await this.getCurrentUser(userId);
+    if (user.verificationToken === null)
+      throw new NotFoundException('no token found');
+    if (user.verificationToken !== verificationToken)
+      throw new BadRequestException('invalid link');
+    user.isAccountVerified = true;
+    user.verificationToken = null;
+    await this.userRepository.save(user);
+    return { message: 'account verified successfully' };
   }
 }

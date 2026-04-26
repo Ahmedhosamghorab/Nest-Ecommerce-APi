@@ -28,6 +28,8 @@ export class User {
   isAccountVerified: boolean;
   @Column({ type: 'varchar', nullable: true, default: null })
   profileImage: string | null;
+  @Column({ nullable: true })
+  verificationToken: string | null;
   @CreateDateColumn({
     type: 'timestamp',
     default: () => CURRENT_TIMESTAMP,

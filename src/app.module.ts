@@ -8,6 +8,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Review } from './reviews/review.entity';
 import { User } from './users/user.entity';
 import { UploadsModule } from './uploads/uploads.module';
+import { MailModule } from './mail/mail.module';
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
@@ -30,6 +31,7 @@ import { UploadsModule } from './uploads/uploads.module';
     ReviewsModule,
     UsersModule,
     UploadsModule,
+    MailModule,
   ],
   exports: [],
   providers: [],

@@ -11,6 +11,7 @@ import {
   UploadedFile,
   Delete,
   Res,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { UserService } from './users.service';
 import { RegisterDto } from './dtos/register.dto';
@@ -22,7 +23,6 @@ import { UserType } from 'src/utils/enums';
 import { AuthRolesGuard } from './guards/auth-roles.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
 import type { Response } from 'express';
 @Controller('api/users')
 export class UsersController {
@@ -64,25 +64,7 @@ export class UsersController {
   // POST: ~/api/users/upload-image
   @Post('upload-image')
   @UseGuards(AuthGuard)
-  @UseInterceptors(
-    FileInterceptor('user-image', {
-      storage: diskStorage({
-        destination: 'images/users',
-        filename: (req, file, cb) => {
-          const prefix = `${Date.now()}-${Math.round(Math.random() * 10000)}`;
-          const filename = `${prefix}-${file.originalname}`;
-          cb(null, filename);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image')) {
-          return cb(null, true);
-        }
-        return cb(new BadRequestException('unsupported file format'), false);
-      },
-      limits: { fileSize: 1024 * 1024 * 2 },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('user-image'))
   public uploadProfileImage(
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() payload: JWTPayload,
@@ -101,5 +83,12 @@ export class UsersController {
   @UseGuards(AuthGuard)
   public showProfileImage(@Param('image') image: string, @Res() res: Response) {
     return res.sendFile(image, { root: 'images/users' });
+  }
+  //GET: ~/api/users/verify-email/:id/:verificationToken
+  public verifyEmail(
+    @Param('id', ParseIntPipe) userId: number,
+    @Param('verificationToken') verificationToken: string,
+  ) {
+    return this.usersService.verifyEmail(userId, verificationToken);
   }
 }
