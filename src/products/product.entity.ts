@@ -10,6 +10,7 @@ import {
   OneToMany,
   ManyToOne,
 } from 'typeorm';
+import { ProductImage } from './product_image.entity';
 
 @Entity({ name: 'products' })
 export class Product {
@@ -34,6 +35,11 @@ export class Product {
   updatedAt: Date;
   @OneToMany(() => Review, (review) => review.product, { eager: true })
   reviews: Review[];
+  @OneToMany(() => ProductImage, (image) => image.product, {
+    eager: true,
+    cascade: true,
+  })
+  images: ProductImage[];
   @ManyToOne(() => User, (user) => user.products, { eager: true })
   user: User;
 }

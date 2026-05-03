@@ -9,6 +9,7 @@ import { Review } from './reviews/review.entity';
 import { User } from './users/user.entity';
 import { UploadsModule } from './uploads/uploads.module';
 import { MailModule } from './mail/mail.module';
+import { ProductImage } from './products/product_image.entity';
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
@@ -22,7 +23,7 @@ import { MailModule } from './mail/mail.module';
           host: config.get<string>('DB_HOST'),
           port: config.get<number>('DB_PORT'),
           synchronize: true, // dev mode only   -   usage: run migrations automaticlly
-          entities: [Product, Review, User],
+          entities: [Product, Review, User, ProductImage],
         };
       },
     }),

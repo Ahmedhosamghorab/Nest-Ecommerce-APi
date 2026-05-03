@@ -10,6 +10,7 @@ import { AuthProvider } from './auth.provider';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { MailModule } from 'src/mail/mail.module';
+import { MailService } from 'src/mail/mail.service';
 @Module({
   controllers: [UsersController],
   imports: [
@@ -46,6 +47,6 @@ import { MailModule } from 'src/mail/mail.module';
     }),
   ],
   exports: [UserService],
-  providers: [UserService, AuthProvider],
+  providers: [UserService, AuthProvider, MailService],
 })
 export class UsersModule {}

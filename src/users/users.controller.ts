@@ -79,12 +79,13 @@ export class UsersController {
   }
 
   //GET: ~/api/users/images/:image
-  @Delete('images/:image')
+  @Get('images/:image')
   @UseGuards(AuthGuard)
   public showProfileImage(@Param('image') image: string, @Res() res: Response) {
     return res.sendFile(image, { root: 'images/users' });
   }
   //GET: ~/api/users/verify-email/:id/:verificationToken
+  @Get('verify-email/:id/:verificationToken')
   public verifyEmail(
     @Param('id', ParseIntPipe) userId: number,
     @Param('verificationToken') verificationToken: string,
