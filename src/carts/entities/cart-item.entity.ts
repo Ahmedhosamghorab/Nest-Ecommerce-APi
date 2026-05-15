@@ -13,7 +13,7 @@ export class CartItem {
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @ManyToOne(() => Product)
+  @ManyToOne(() => Product, { eager: true })
   product: Product;
 
   @Column({
