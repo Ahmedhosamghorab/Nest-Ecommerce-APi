@@ -76,8 +76,8 @@ export class ProductService {
     const product = await this.getOneBy(id);
     product.title = dto.title ?? product.title;
     product.price = dto.price ?? product.price;
+    product.quantity = dto.quantity ?? product.quantity;
     product.description = dto.description ?? product.description;
-
     return this.productRepositry.save(product);
   }
 

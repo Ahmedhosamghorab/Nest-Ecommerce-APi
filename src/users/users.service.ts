@@ -15,6 +15,8 @@ import { UserType } from 'src/utils/enums';
 import { AuthProvider } from './auth.provider';
 import { join } from 'node:path';
 import { unlinkSync } from 'node:fs';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { UserVerifiedEvent } from './events/user-verified.event';
 /**
  * Service responsible for managing users, including registration, login, and profile updates.
  */
@@ -22,6 +24,7 @@ import { unlinkSync } from 'node:fs';
 export class UserService {
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
+    private readonly eventEmitter: EventEmitter2,
     private readonly authService: AuthProvider,
   ) {}
 
@@ -149,6 +152,7 @@ export class UserService {
     user.isAccountVerified = true;
     user.verificationToken = null;
     await this.userRepository.save(user);
+    this.eventEmitter.emit('user.verified', new UserVerifiedEvent(user.id));
     return { message: 'account verified successfully' };
   }
 }

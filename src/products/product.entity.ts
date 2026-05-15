@@ -22,6 +22,8 @@ export class Product {
   description: string;
   @Column({ type: 'float' })
   price: number;
+  @Column({ type: 'int' })
+  quantity: number;
   @CreateDateColumn({
     type: 'timestamp',
     default: () => CURRENT_TIMESTAMP,

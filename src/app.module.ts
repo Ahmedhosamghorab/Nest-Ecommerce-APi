@@ -10,6 +10,11 @@ import { User } from './users/user.entity';
 import { UploadsModule } from './uploads/uploads.module';
 import { MailModule } from './mail/mail.module';
 import { ProductImage } from './products/product_image.entity';
+import { CartsModule } from './carts/carts.module';
+import { Cart } from './carts/entities/cart.entity';
+import { CartItem } from './carts/entities/cart-item.entity';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
@@ -23,7 +28,7 @@ import { ProductImage } from './products/product_image.entity';
           host: config.get<string>('DB_HOST'),
           port: config.get<number>('DB_PORT'),
           synchronize: true, // dev mode only   -   usage: run migrations automaticlly
-          entities: [Product, Review, User, ProductImage],
+          entities: [Product, Review, User, ProductImage, Cart, CartItem],
         };
       },
     }),
@@ -33,6 +38,8 @@ import { ProductImage } from './products/product_image.entity';
     UsersModule,
     UploadsModule,
     MailModule,
+    CartsModule,
+    EventEmitterModule.forRoot(),
   ],
   exports: [],
   providers: [],

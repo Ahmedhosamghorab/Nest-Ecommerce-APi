@@ -1,8 +1,7 @@
-import { BadRequestException, Module } from '@nestjs/common';
+import { Module, BadRequestException } from '@nestjs/common';
 import { UsersController } from './users.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './user.entity';
-import { UserService } from './users.service';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { StringValue } from 'ms';
@@ -10,7 +9,8 @@ import { AuthProvider } from './auth.provider';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { MailModule } from 'src/mail/mail.module';
-import { MailService } from 'src/mail/mail.service';
+import { UserService } from './users.service';
+
 @Module({
   controllers: [UsersController],
   imports: [
@@ -46,7 +46,7 @@ import { MailService } from 'src/mail/mail.service';
       },
     }),
   ],
+  providers: [UserService, AuthProvider],
   exports: [UserService],
-  providers: [UserService, AuthProvider, MailService],
 })
 export class UsersModule {}

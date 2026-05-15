@@ -9,8 +9,10 @@ import {
   Column,
   PrimaryGeneratedColumn,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
+import { Cart } from 'src/carts/entities/cart.entity';
 @Entity({ name: 'users' })
 export class User {
   @PrimaryGeneratedColumn()
@@ -41,6 +43,9 @@ export class User {
     onUpdate: CURRENT_TIMESTAMP,
   })
   updatedAt: Date;
+
+  @OneToOne(() => Cart, (cart) => cart.user, { cascade: true })
+  cart: Cart;
   @OneToMany(() => Product, (product) => product.user)
   products: Product[];
   @OneToMany(() => Review, (review) => review.user)
