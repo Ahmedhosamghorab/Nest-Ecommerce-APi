@@ -20,14 +20,17 @@ import { ProductService } from './products.service';
 import { AuthRolesGuard } from 'src/users/guards/auth-roles.guard';
 import { Roles } from 'src/users/decorators/user-role.decorator';
 import { UserType } from 'src/utils/enums';
-import type { JWTPayload } from 'src/utils/types';
+import type { JWTPayload, MessageResponse } from 'src/utils/types';
 import { CurrentUser } from 'src/users/decorators/current-user.decorator';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from 'src/users/guards/auth.guard';
 import type { Response } from 'express';
+import { Product } from './product.entity';
+
 @Controller('api/products')
 export class ProductsController {
   constructor(private readonly productService: ProductService) {}
+
   // Post: ~/api/products
   @Post()
   @UseGuards(AuthRolesGuard)
@@ -35,23 +38,26 @@ export class ProductsController {
   public createNewProduct(
     @Body() body: CreateProductDto,
     @CurrentUser() payload: JWTPayload,
-  ) {
+  ): Promise<Product> {
     return this.productService.createNewProduct(body, payload.id);
   }
+
   // Get: ~/api/products
   @Get()
   public getAllProducts(
-    @Query('title') title: string,
-    @Query('minPrice') minPrice: string,
-    @Query('maxPrice') maxPrice: string,
-  ) {
+    @Query('title') title?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+  ): Promise<Product[]> {
     return this.productService.getAll(title, minPrice, maxPrice);
   }
+
   // Get: ~/api/products/:id
   @Get(':id')
-  public getSingleProduct(@Param('id', ParseIntPipe) id: number) {
+  public getSingleProduct(@Param('id', ParseIntPipe) id: number): Promise<Product> {
     return this.productService.getOneBy(id);
   }
+
   // Put: ~/api/products/:id
   @Put(':id')
   @UseGuards(AuthRolesGuard)
@@ -59,9 +65,10 @@ export class ProductsController {
   public updateProduct(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateProductDto,
-  ) {
+  ): Promise<Product> {
     return this.productService.update(id, body);
   }
+
   // POST: ~/api/products/:id/upload-images
   @Post(':id/upload-images')
   @UseGuards(AuthRolesGuard)
@@ -70,7 +77,7 @@ export class ProductsController {
   public async uploadProfileImage(
     @UploadedFiles() files: Express.Multer.File[],
     @Param('id', ParseIntPipe) productId: number,
-  ) {
+  ): Promise<MessageResponse[]> {
     if (!files || files.length < 1)
       throw new BadRequestException('no files provided');
 
@@ -82,31 +89,35 @@ export class ProductsController {
 
     return results;
   }
+
   // Delete: ~/api/products/:id
   @Delete(':id')
   @UseGuards(AuthRolesGuard)
   @Roles(UserType.ADMIN)
-  public deleteProduct(@Param('id', ParseIntPipe) id: number) {
+  public deleteProduct(@Param('id', ParseIntPipe) id: number): Promise<MessageResponse> {
     return this.productService.delete(id);
   }
+
   // Delete: ~/api/products/images/:image
   @Delete('images/:image')
   @UseGuards(AuthRolesGuard)
   @Roles(UserType.ADMIN)
-  public deleteProductImage(@Param('imageId') image: string) {
+  public deleteProductImage(@Param('image') image: string): Promise<MessageResponse> {
     return this.productService.deleteProductImage(image);
   }
+
   // Delete: ~/api/products/:id/images
   @Delete(':id/images')
   @UseGuards(AuthRolesGuard)
   @Roles(UserType.ADMIN)
-  public deleteAllProductImages(@Param('id', ParseIntPipe) id: number) {
+  public deleteAllProductImages(@Param('id', ParseIntPipe) id: number): Promise<MessageResponse> {
     return this.productService.deleteProductImages(id);
   }
+
   //GET: ~/api/product/images/:image
   @Get('images/:image')
   @UseGuards(AuthGuard)
-  public showProfileImage(@Param('image') image: string, @Res() res: Response) {
+  public showProfileImage(@Param('image') image: string, @Res() res: Response): void {
     return res.sendFile(image, { root: 'images/products' });
   }
 }

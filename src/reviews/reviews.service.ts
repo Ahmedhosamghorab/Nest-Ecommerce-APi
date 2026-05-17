@@ -10,8 +10,9 @@ import { CreateReviewDto } from './dtos/create-review.dto';
 import { UpdateReviewDto } from './dtos/update-review.dto';
 import { UserService } from 'src/users/users.service';
 import { ProductService } from 'src/products/products.service';
-import { JWTPayload } from 'src/utils/types';
+import type { JWTPayload, MessageResponse } from 'src/utils/types';
 import { UserType } from 'src/utils/enums';
+
 /**
  * Service responsible for managing product reviews, including creation, retrieval, updates, and deletion.
  */
@@ -35,7 +36,7 @@ export class ReviewService {
     productId: number,
     userId: number,
     dto: CreateReviewDto,
-  ) {
+  ): Promise<Review> {
     const user = await this.usersService.getCurrentUser(userId);
     const product = await this.productsService.getOneBy(productId);
     const newReview = this.reviewRepository.create({ ...dto, user, product });
@@ -48,13 +49,12 @@ export class ReviewService {
    * @param reviewPerPage - The number of reviews to display per page.
    * @returns A promise that resolves to an array of reviews.
    */
-  public getAll(pageNumber: number, reviewPerPage: number) {
-    const reviews = this.reviewRepository.find({
+  public getAll(pageNumber: number, reviewPerPage: number): Promise<Review[]> {
+    return this.reviewRepository.find({
       skip: reviewPerPage * (pageNumber - 1),
       take: reviewPerPage,
       order: { createdAt: 'DESC' },
     });
-    return reviews;
   }
 
   /**
@@ -65,9 +65,13 @@ export class ReviewService {
    * @returns A promise that resolves to the updated review.
    * @throws ForbiddenException if the user is not the author of the review.
    */
-  public async update(userId: number, id: number, dto: UpdateReviewDto) {
+  public async update(
+    userId: number,
+    id: number,
+    dto: UpdateReviewDto,
+  ): Promise<Review> {
     const review = await this.getOneBy(id);
-    if (review.user.id != userId)
+    if (review.user.id !== userId)
       throw new ForbiddenException('access denied, you are not allowed');
     review.rate = dto.rate ?? review.rate;
     review.comment = dto.comment ?? review.comment;
@@ -81,9 +85,12 @@ export class ReviewService {
    * @returns A promise that resolves to a success message.
    * @throws ForbiddenException if the user is not the author and not an admin.
    */
-  public async delete(payload: JWTPayload, id: number) {
+  public async delete(
+    payload: JWTPayload,
+    id: number,
+  ): Promise<MessageResponse> {
     const review = await this.getOneBy(id);
-    if (review.user.id == payload.id || payload.userType === UserType.ADMIN) {
+    if (review.user.id === payload.id || payload.userType === UserType.ADMIN) {
       await this.reviewRepository.remove(review);
       return { message: 'review deleted successfully' };
     }
@@ -96,9 +103,12 @@ export class ReviewService {
    * @returns A promise that resolves to the review entity.
    * @throws NotFoundException if the review does not exist.
    */
-  public async getOneBy(id: number) {
-    const review = await this.reviewRepository.findOne({ where: { id } });
-    if (!review) throw new NotFoundException();
+  public async getOneBy(id: number): Promise<Review> {
+    const review = await this.reviewRepository.findOne({
+      where: { id },
+      relations: ['user'],
+    });
+    if (!review) throw new NotFoundException('Review not found');
     return review;
   }
 }

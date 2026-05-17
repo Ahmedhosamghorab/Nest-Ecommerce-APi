@@ -1,13 +1,15 @@
 import { NotFoundException, Injectable } from '@nestjs/common';
 import { CreateProductDto } from './dtos/create-product.dto';
 import { UpdateProductDto } from './dtos/update-product.dto';
-import { Repository, Like, Between } from 'typeorm';
+import { Repository, Like, Between, FindOptionsWhere } from 'typeorm';
 import { Product } from './product.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserService } from 'src/users/users.service';
 import { ProductImage } from './product_image.entity';
 import * as fs from 'fs';
 import * as path from 'path';
+import type { MessageResponse } from 'src/utils/types';
+
 /**
  * Service responsible for managing products, including creation, retrieval, and updates.
  */
@@ -27,7 +29,7 @@ export class ProductService {
    * @param userId - The ID of the user who owns the product.
    * @returns A promise that resolves to the newly created product.
    */
-  public async createNewProduct(dto: CreateProductDto, userId: number) {
+  public async createNewProduct(dto: CreateProductDto, userId: number): Promise<Product> {
     const user = await this.userService.getCurrentUser(userId);
     const newProduct = this.productRepositry.create({
       ...dto,
@@ -44,11 +46,11 @@ export class ProductService {
    * @param maxPrice - Optional maximum price to filter products.
    * @returns A promise that resolves to an array of products matching the criteria.
    */
-  public getAll(title?: string, minPrice?: string, maxPrice?: string) {
-    const filters = {
+  public getAll(title?: string, minPrice?: string, maxPrice?: string): Promise<Product[]> {
+    const filters: FindOptionsWhere<Product> = {
       ...(title ? { title: Like(`%${title.toLowerCase()}%`) } : {}),
       ...(minPrice && maxPrice
-        ? { price: Between(parseInt(minPrice), parseInt(maxPrice)) }
+        ? { price: Between(parseInt(minPrice, 10), parseInt(maxPrice, 10)) }
         : {}),
     };
     return this.productRepositry.find({ where: filters });
@@ -60,9 +62,9 @@ export class ProductService {
    * @returns A promise that resolves to the product entity.
    * @throws NotFoundException if the product does not exist.
    */
-  public async getOneBy(id: number) {
+  public async getOneBy(id: number): Promise<Product> {
     const product = await this.productRepositry.findOne({ where: { id } });
-    if (!product) throw new NotFoundException();
+    if (!product) throw new NotFoundException('Product not found');
     return product;
   }
 
@@ -72,7 +74,7 @@ export class ProductService {
    * @param dto - The data to update (title, price, description).
    * @returns A promise that resolves to the updated product.
    */
-  public async update(id: number, dto: UpdateProductDto) {
+  public async update(id: number, dto: UpdateProductDto): Promise<Product> {
     const product = await this.getOneBy(id);
     product.title = dto.title ?? product.title;
     product.price = dto.price ?? product.price;
@@ -86,7 +88,7 @@ export class ProductService {
    * @param id - The ID of the product to delete.
    * @returns A promise that resolves to a success message.
    */
-  public async delete(id: number) {
+  public async delete(id: number): Promise<MessageResponse> {
     const product = await this.getOneBy(id);
     // Delete image files from disk
     if (product.images && product.images.length > 0) {
@@ -101,7 +103,8 @@ export class ProductService {
     await this.productRepositry.remove(product);
     return { message: 'product deleted successfully' };
   }
-  public async addProductImage(id: number, image: string) {
+
+  public async addProductImage(id: number, image: string): Promise<MessageResponse> {
     const product = await this.getOneBy(id);
     const productImage = this.productImageRepositry.create({
       image,
@@ -113,11 +116,11 @@ export class ProductService {
 
   /**
    * Deletes a single product image by its ID and removes the file from disk.
-   * @param imageId - The ID of the product image to delete.
+   * @param image - The filename of the product image to delete.
    * @returns A promise that resolves to a success message.
    * @throws NotFoundException if the image does not exist.
    */
-  public async deleteProductImage(image: string) {
+  public async deleteProductImage(image: string): Promise<MessageResponse> {
     const productImage = await this.productImageRepositry.findOne({
       where: { image: image },
     });
@@ -138,7 +141,7 @@ export class ProductService {
    * @param productId - The ID of the product whose images should be deleted.
    * @returns A promise that resolves to a success message.
    */
-  public async deleteProductImages(productId: number) {
+  public async deleteProductImages(productId: number): Promise<MessageResponse> {
     const product = await this.getOneBy(productId);
     const images = await this.productImageRepositry.find({
       where: { product: { id: product.id } },

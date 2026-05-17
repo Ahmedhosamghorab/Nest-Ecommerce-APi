@@ -16,13 +16,13 @@ import { ProductImage } from './product_image.entity';
     MulterModule.register({
       storage: diskStorage({
         destination: './images/products',
-        filename: (req, file, cb) => {
+        filename: (_req, file, cb) => {
           const prefix = `${Date.now()}-${Math.round(Math.random() * 1000000)}`;
           const filename = `${prefix}-${file.originalname}`;
           cb(null, filename);
         },
       }),
-      fileFilter: (req, file, cb) => {
+      fileFilter: (_req, file, cb) => {
         if (file.mimetype.startsWith('image')) {
           return cb(null, true);
         }

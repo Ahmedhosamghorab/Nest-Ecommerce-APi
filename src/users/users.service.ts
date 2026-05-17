@@ -9,7 +9,7 @@ import { User } from './user.entity';
 import { Repository } from 'typeorm';
 import { RegisterDto } from './dtos/register.dto';
 import { LoginDto } from './dtos/login.dto';
-import { JWTPayload } from 'src/utils/types';
+import type { AccessToken, JWTPayload, MessageResponse } from 'src/utils/types';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { UserType } from 'src/utils/enums';
 import { AuthProvider } from './auth.provider';
@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import { unlinkSync } from 'node:fs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserVerifiedEvent } from './events/user-verified.event';
+
 /**
  * Service responsible for managing users, including registration, login, and profile updates.
  */
@@ -31,18 +32,20 @@ export class UserService {
   /**
    * Registers a new user in the system.
    * @param registerDto - The data required for user registration (username, password, etc.).
-   * @returns A promise that resolves to an access token (JWT).
+   * @returns A promise that resolves to a message response.
    */
-  public async register(registerDto: RegisterDto) {
+  public async register(registerDto: RegisterDto): Promise<MessageResponse> {
     return this.authService.register(registerDto);
   }
 
   /**
    * Authenticates a user and provides an access token.
    * @param loginDto - The credentials required for login (username, password).
-   * @returns A promise that resolves to an access token (JWT).
+   * @returns A promise that resolves to an access token (JWT) or message response.
    */
-  public async login(loginDto: LoginDto) {
+  public async login(
+    loginDto: LoginDto,
+  ): Promise<AccessToken | MessageResponse> {
     return this.authService.login(loginDto);
   }
 
@@ -72,12 +75,12 @@ export class UserService {
    * @param updateUserDto - The data to update (e.g., username, password).
    * @returns A promise that resolves to the updated User entity.
    */
-  public async update(id: number, updateUserDto: UpdateUserDto) {
+  public async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.getCurrentUser(id);
     const { username, password } = updateUserDto;
     user.username = username ?? user.username;
-    const hashedPassword = await this.authService.hashPassword(password);
     if (password) {
+      const hashedPassword = await this.authService.hashPassword(password);
       user.password = hashedPassword;
     }
     return this.userRepository.save(user);
@@ -90,11 +93,11 @@ export class UserService {
    * @returns A promise that resolves to a success message.
    * @throws ForbiddenException if the requester does not have permission to delete the account.
    */
-  public async delete(id: number, payload: JWTPayload) {
+  public async delete(id: number, payload: JWTPayload): Promise<MessageResponse> {
     const user = await this.getCurrentUser(id);
-    if (user.id == payload.id || user.userType == UserType.ADMIN) {
+    if (user.id === payload.id || payload.userType === UserType.ADMIN) {
       await this.userRepository.remove(user);
-      return { message: 'product deleted successfully' };
+      return { message: 'User deleted successfully' };
     }
     throw new ForbiddenException('Access denied');
   }
@@ -105,14 +108,12 @@ export class UserService {
    * @param newProfileImage - The filename of the new profile image.
    * @returns A promise that resolves to the updated User entity.
    */
-  public async setProfileImage(userId: number, newProfileImage: string) {
+  public async setProfileImage(userId: number, newProfileImage: string): Promise<User> {
     const user = await this.getCurrentUser(userId);
-    if (user.profileImage === null) {
-      user.profileImage = newProfileImage;
-    } else {
+    if (user.profileImage !== null) {
       await this.deleteProfileImage(userId);
-      user.profileImage = newProfileImage;
     }
+    user.profileImage = newProfileImage;
     return this.userRepository.save(user);
   }
 
@@ -122,15 +123,20 @@ export class UserService {
    * @returns A promise that resolves to the updated User entity with profileImage set to null.
    * @throws BadRequestException if the user has no profile image to delete.
    */
-  public async deleteProfileImage(userId: number) {
+  public async deleteProfileImage(userId: number): Promise<User> {
     const user = await this.getCurrentUser(userId);
     if (user.profileImage === null)
-      throw new BadRequestException('no profile image founded');
+      throw new BadRequestException('no profile image found');
     const imageFilePath = join(
       process.cwd(),
       `./images/users/${user.profileImage}`,
     );
-    unlinkSync(imageFilePath);
+    try {
+      unlinkSync(imageFilePath);
+    } catch (error) {
+       // Log error but continue to clear DB record if file is missing
+       console.error(`Failed to delete profile image file: ${imageFilePath}`, error);
+    }
     user.profileImage = null;
     return this.userRepository.save(user);
   }
@@ -143,7 +149,7 @@ export class UserService {
    * @throws NotFoundException if no token is found for the user.
    * @throws BadRequestException if the provided token is invalid.
    */
-  public async verifyEmail(userId: number, verificationToken: string) {
+  public async verifyEmail(userId: number, verificationToken: string): Promise<MessageResponse> {
     const user = await this.getCurrentUser(userId);
     if (user.verificationToken === null)
       throw new NotFoundException('no token found');

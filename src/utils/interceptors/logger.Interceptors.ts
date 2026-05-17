@@ -6,12 +6,13 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
+
 @Injectable()
-export class LoggerInterceptor implements NestInterceptor {
+export class LoggerInterceptor<T> implements NestInterceptor<T, T> {
   intercept(
-    context: ExecutionContext,
-    next: CallHandler<any>,
-  ): Observable<any> | Promise<Observable<any>> {
+    _context: ExecutionContext,
+    next: CallHandler<T>,
+  ): Observable<T> | Promise<Observable<T>> {
     return next.handle().pipe(tap(() => console.log(`after interceptor`)));
   }
 }

@@ -2,14 +2,15 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { User } from './user.entity';
 import { Repository } from 'typeorm';
 import { RegisterDto } from './dtos/register.dto';
-import bcrypt from 'node_modules/bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import { LoginDto } from './dtos/login.dto';
 import { JwtService } from '@nestjs/jwt';
-import { JWTPayload } from 'src/utils/types';
+import { AccessToken, JWTPayload, MessageResponse } from 'src/utils/types';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { MailService } from 'src/mail/mail.service';
+
 @Injectable()
 export class AuthProvider {
   constructor(
@@ -18,12 +19,13 @@ export class AuthProvider {
     private readonly mailService: MailService,
     private readonly config: ConfigService,
   ) {}
+
   /**
    * create new user
    * @param registerDto data needed to create new user
-   * @returns (JWT) access token
+   * @returns message response
    */
-  public async register(registerDto: RegisterDto) {
+  public async register(registerDto: RegisterDto): Promise<MessageResponse> {
     const { email, password, username } = registerDto;
     const userFromDb = await this.userRepository.findOne({ where: { email } });
     if (userFromDb) throw new BadRequestException('user already exist');
@@ -39,12 +41,15 @@ export class AuthProvider {
     await this.mailService.sendVerifyEmail(newUser.email, link);
     return { message: 'verification link has been sent to your email' };
   }
+
   /**
    * login user
    * @param loginDto data needed for login
-   * @returns (JWT) access token
+   * @returns (JWT) access token or message response
    */
-  public async login(loginDto: LoginDto) {
+  public async login(
+    loginDto: LoginDto,
+  ): Promise<AccessToken | MessageResponse> {
     const { email, password } = loginDto;
     const user = await this.userRepository.findOne({ where: { email } });
     if (!user) throw new BadRequestException('wrong credentials');
@@ -76,6 +81,7 @@ export class AuthProvider {
     const hashedPassword = await bcrypt.hash(password, salt);
     return hashedPassword;
   }
+
   /**
    * generate json web token
    * @param payload payload needed for generating token
@@ -84,7 +90,11 @@ export class AuthProvider {
   private generateJWT(payload: JWTPayload): Promise<string> {
     return this.jwtService.signAsync(payload);
   }
-  private generateLink(userId: number, verificationToken: string | null) {
+
+  private generateLink(
+    userId: number,
+    verificationToken: string | null,
+  ): string {
     return `${this.config.get<string>('DOMAIN')}/api/users/verify-email/${userId}/${verificationToken}`;
   }
 }

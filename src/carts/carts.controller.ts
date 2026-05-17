@@ -12,8 +12,9 @@ import {
 import { CartsService } from './carts.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
+import { Cart } from './entities/cart.entity';
 import { CurrentUser } from 'src/users/decorators/current-user.decorator';
-import type { JWTPayload } from 'src/utils/types';
+import type { JWTPayload, MessageResponse } from 'src/utils/types';
 import { AuthGuard } from 'src/users/guards/auth.guard';
 
 @Controller('cart')
@@ -23,7 +24,7 @@ export class CartsController {
 
   // GET ~/api/cart — get the current user's cart with all items & product details
   @Get()
-  getCart(@CurrentUser() payload: JWTPayload) {
+  getCart(@CurrentUser() payload: JWTPayload): Promise<Cart> {
     return this.cartsService.getCart(payload.id);
   }
 
@@ -33,7 +34,7 @@ export class CartsController {
     @CurrentUser() payload: JWTPayload,
     @Param('productId', ParseIntPipe) productId: number,
     @Body() addToCartDto: AddToCartDto,
-  ) {
+  ): Promise<MessageResponse> {
     return this.cartsService.addToCart(payload.id, productId, addToCartDto);
   }
 
@@ -43,7 +44,7 @@ export class CartsController {
     @CurrentUser() payload: JWTPayload,
     @Param('itemId', ParseIntPipe) itemId: number,
     @Body() updateCartDto: UpdateCartDto,
-  ) {
+  ): Promise<MessageResponse> {
     return this.cartsService.updateItemQuantity(
       payload.id,
       itemId,
@@ -56,13 +57,13 @@ export class CartsController {
   removeItem(
     @CurrentUser() payload: JWTPayload,
     @Param('itemId', ParseIntPipe) itemId: number,
-  ) {
+  ): Promise<MessageResponse> {
     return this.cartsService.removeItem(payload.id, itemId);
   }
 
   // DELETE ~/api/cart/clear — clear all items from the cart
   @Delete('clear')
-  clearCart(@CurrentUser() payload: JWTPayload) {
+  clearCart(@CurrentUser() payload: JWTPayload): Promise<MessageResponse> {
     return this.cartsService.clearCart(payload.id);
   }
 }

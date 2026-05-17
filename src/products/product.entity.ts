@@ -11,6 +11,7 @@ import {
   ManyToOne,
 } from 'typeorm';
 import { ProductImage } from './product_image.entity';
+import { OrderItem } from 'src/orders/entities/order-item.entity';
 
 @Entity({ name: 'products' })
 export class Product {
@@ -41,6 +42,8 @@ export class Product {
     eager: true,
     cascade: true,
   })
+  @OneToMany(() => OrderItem, (orderItem) => orderItem.product)
+  orderItems: OrderItem[];
   images: ProductImage[];
   @ManyToOne(() => User, (user) => user.products, { eager: true })
   user: User;

@@ -14,6 +14,10 @@ import { CartsModule } from './carts/carts.module';
 import { Cart } from './carts/entities/cart.entity';
 import { CartItem } from './carts/entities/cart-item.entity';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { OrdersModule } from './orders/orders.module';
+import { PaymobModule } from './paymob/paymob.module';
+import { Order } from './orders/entities/order.entity';
+import { OrderItem } from './orders/entities/order-item.entity';
 
 @Module({
   imports: [
@@ -28,7 +32,16 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
           host: config.get<string>('DB_HOST'),
           port: config.get<number>('DB_PORT'),
           synchronize: true, // dev mode only   -   usage: run migrations automaticlly
-          entities: [Product, Review, User, ProductImage, Cart, CartItem],
+          entities: [
+            Product,
+            Review,
+            User,
+            ProductImage,
+            Cart,
+            CartItem,
+            Order,
+            OrderItem,
+          ],
         };
       },
     }),
@@ -39,6 +52,8 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     UploadsModule,
     MailModule,
     CartsModule,
+    OrdersModule,
+    PaymobModule,
     EventEmitterModule.forRoot(),
   ],
   exports: [],

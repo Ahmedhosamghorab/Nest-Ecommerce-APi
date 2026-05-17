@@ -14,14 +14,17 @@ import { ReviewService } from './reviews.service';
 import { CreateReviewDto } from './dtos/create-review.dto';
 import { UpdateReviewDto } from './dtos/update-review.dto';
 import { CurrentUser } from 'src/users/decorators/current-user.decorator';
-import type { JWTPayload } from 'src/utils/types';
+import type { JWTPayload, MessageResponse } from 'src/utils/types';
 import { AuthGuard } from 'src/users/guards/auth.guard';
 import { AuthRolesGuard } from 'src/users/guards/auth-roles.guard';
 import { Roles } from 'src/users/decorators/user-role.decorator';
 import { UserType } from 'src/utils/enums';
+import { Review } from './review.entity';
+
 @Controller('api/reviews')
 export class ReviewsController {
   constructor(private readonly reviewService: ReviewService) {}
+
   // Post: ~/api/reviews
   @Post(':productId')
   @UseGuards(AuthGuard)
@@ -29,10 +32,11 @@ export class ReviewsController {
     @Param('productId', ParseIntPipe) productId: number,
     @CurrentUser() payload: JWTPayload,
     @Body() dto: CreateReviewDto,
-  ) {
+  ): Promise<Review> {
     const userId = payload.id;
     return this.reviewService.createNewReview(productId, userId, dto);
   }
+
   // Get: ~/api/reviews
   @Get()
   @UseGuards(AuthRolesGuard)
@@ -40,9 +44,10 @@ export class ReviewsController {
   public getAllReviews(
     @Query('pageNumber', ParseIntPipe) pageNumber: number,
     @Query('reviewPerPage', ParseIntPipe) reviewPerPage: number,
-  ) {
+  ): Promise<Review[]> {
     return this.reviewService.getAll(pageNumber, reviewPerPage);
   }
+
   // Put: ~/api/reviews
   @Put(':id')
   @UseGuards(AuthRolesGuard)
@@ -50,15 +55,17 @@ export class ReviewsController {
   public updateReview(
     @CurrentUser() user: JWTPayload,
     @Param('id', ParseIntPipe) id: number,
-    dto: UpdateReviewDto,
-  ) {
+    @Body() dto: UpdateReviewDto,
+  ): Promise<Review> {
     return this.reviewService.update(user.id, id, dto);
   }
-  // Put: ~/api/reviews
+
+  // Get: ~/api/reviews/:id
   @Get(':id')
-  public getSingleReview(@Param('id', ParseIntPipe) id: number) {
+  public getSingleReview(@Param('id', ParseIntPipe) id: number): Promise<Review> {
     return this.reviewService.getOneBy(id);
   }
+
   // Delete: ~/api/reviews
   @Delete(':id')
   @UseGuards(AuthRolesGuard)
@@ -66,7 +73,7 @@ export class ReviewsController {
   public deleteReview(
     @CurrentUser() payload: JWTPayload,
     @Param('id', ParseIntPipe) id: number,
-  ) {
+  ): Promise<MessageResponse> {
     return this.reviewService.delete(payload, id);
   }
 }

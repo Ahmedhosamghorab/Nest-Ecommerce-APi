@@ -12,6 +12,7 @@ import { DataSource, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { OnEvent } from '@nestjs/event-emitter';
 import { UserVerifiedEvent } from 'src/users/events/user-verified.event';
+import type { MessageResponse } from 'src/utils/types';
 
 @Injectable()
 export class CartsService {
@@ -28,7 +29,7 @@ export class CartsService {
    * Idempotent — silently skips if the cart already exists.
    */
   @OnEvent('user.verified')
-  public async handleUserVerified(event: UserVerifiedEvent) {
+  public async handleUserVerified(event: UserVerifiedEvent): Promise<void> {
     const existingCart = await this.cartRepository.findOne({
       where: { user: { id: event.userId } },
     });
@@ -44,7 +45,7 @@ export class CartsService {
    * @param userId - The ID of the authenticated user.
    * @returns The cart entity with cartItems and product details.
    */
-  public async getCart(userId: number) {
+  public async getCart(userId: number): Promise<Cart> {
     const cart = await this.cartRepository.findOne({
       where: { user: { id: userId } },
     });
@@ -65,7 +66,11 @@ export class CartsService {
    * @param dto - Contains the quantity to add.
    * @returns A success message.
    */
-  public async addToCart(userId: number, productId: number, dto: AddToCartDto) {
+  public async addToCart(
+    userId: number,
+    productId: number,
+    dto: AddToCartDto,
+  ): Promise<MessageResponse> {
     return this.dataSource.transaction(async (manager) => {
       const cart = await manager.findOne(Cart, {
         where: { user: { id: userId } },
@@ -128,7 +133,7 @@ export class CartsService {
     userId: number,
     itemId: number,
     dto: UpdateCartDto,
-  ) {
+  ): Promise<MessageResponse> {
     return this.dataSource.transaction(async (manager) => {
       const cartItem = await manager.findOne(CartItem, {
         where: { id: itemId },
@@ -168,7 +173,10 @@ export class CartsService {
    * @param itemId - The ID of the cart item to remove.
    * @returns A success message.
    */
-  public async removeItem(userId: number, itemId: number) {
+  public async removeItem(
+    userId: number,
+    itemId: number,
+  ): Promise<MessageResponse> {
     const cartItem = await this.cartItemRepository.findOne({
       where: { id: itemId },
       relations: ['cart', 'cart.user'],
@@ -189,7 +197,7 @@ export class CartsService {
    * @param userId - The ID of the authenticated user.
    * @returns A success message.
    */
-  public async clearCart(userId: number) {
+  public async clearCart(userId: number): Promise<MessageResponse> {
     const cart = await this.cartRepository.findOne({
       where: { user: { id: userId } },
       relations: ['cartItems'],

@@ -34,10 +34,9 @@ export class AuthRolesGuard implements CanActivate {
 
         if (!user) return false;
         if (roles.includes(user.userType)) {
-          request['user'] = user;
+          request.user = user;
           return true;
         }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         return false;
       }

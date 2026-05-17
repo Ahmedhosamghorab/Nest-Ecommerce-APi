@@ -1,5 +1,6 @@
 import { Product } from 'src/products/product.entity';
 import { Review } from 'src/reviews/review.entity';
+import { Order } from 'src/orders/entities/order.entity';
 import { CURRENT_TIMESTAMP } from 'src/utils/constants';
 import { UserType } from 'src/utils/enums';
 import {
@@ -50,4 +51,6 @@ export class User {
   products: Product[];
   @OneToMany(() => Review, (review) => review.user)
   reviews: Review[];
+  @OneToMany(() => Order, (order) => order.user)
+  orders: Order[];
 }
