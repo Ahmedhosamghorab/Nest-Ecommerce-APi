@@ -1,123 +1,104 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { AxiosError } from 'axios';
-import type {
-  BillingData,
-  IntentionResponse,
-  PaymobWebhookPayload,
-} from 'src/utils/types';
-
-interface PaymobIntentionResult {
-  paymentUrl: string;
-  paymobIntentionId: string;
-}
 
 @Injectable()
 export class PaymobService {
-  private readonly logger = new Logger(PaymobService.name);
+  // private readonly logger = new Logger(PaymobService.name);
 
   constructor(
     private readonly http: HttpService,
     private readonly config: ConfigService,
   ) {}
 
-  /**
-   * Creates a payment intention and returns the hosted checkout URL.
-   */
+  // =========================
+  // CREATE INTENTION
+  // =========================
   async createPaymentIntention(
     amount: number,
     orderId: number,
-    billingData: BillingData,
-  ): Promise<PaymobIntentionResult> {
-    try {
-      const secretKey = this.config.getOrThrow<string>('PAYMOB_SECRET_KEY');
-      const publicKey = this.config.getOrThrow<string>('PAYMOB_PUBLIC_KEY');
-      const integrationId = Number(
-        this.config.getOrThrow<string>('PAYMOB_INTEGRATION_ID'),
-      );
+    billingData: any,
+  ) {
+    const secretKey = this.config.getOrThrow<string>('PAYMOB_SECRET_KEY');
+    const publicKey = this.config.getOrThrow<string>('PAYMOB_PUBLIC_KEY');
+    const integrationId = Number(
+      this.config.getOrThrow<string>('PAYMOB_INTEGRATION_ID'),
+    );
 
-      const amountCents = Math.round(amount * 100);
+    const amountCents = Math.round(amount * 100);
 
-      const payload = {
-        amount: amountCents,
-        currency: 'EGP',
-        payment_methods: [integrationId],
-        items: [], // Optional: Can be populated with order items if needed
-        billing_data: {
-          first_name: billingData.first_name,
-          last_name: billingData.last_name,
-          phone_number: billingData.phone_number,
-          email: billingData.email,
-          apartment: billingData.apartment || 'NA',
-          floor: billingData.floor || 'NA',
-          street: billingData.street || 'NA',
-          building: billingData.building || 'NA',
-          city: billingData.city || 'Cairo',
-          country: billingData.country || 'EG',
-        },
-        special_reference: orderId.toString(),
-        notification_url: this.config.get<string>('PAYMOB_WEBHOOK_URL'),
-        redirection_url: `${this.config.get('FRONTEND_URL')}/payment-result`,
-      };
+    const payload = {
+      amount: amountCents,
+      currency: 'EGP',
+      payment_methods: [integrationId],
+      items: [],
+      billing_data: {
+        ...billingData,
+        country: billingData.country || 'EG',
+      },
+      special_reference: orderId.toString(),
+      notification_url: this.config.get<string>('PAYMOB_WEBHOOK_URL'),
+      redirection_url: `${this.config.get<string>('FRONTEND_URL')}/payment-result`,
+    };
 
-      const { data } = await firstValueFrom(
-        this.http.post<IntentionResponse>(
-          'https://accept.paymob.com/v1/intention/',
-          payload,
-          {
-            headers: {
-              Authorization: `Token ${secretKey}`,
-            },
-          },
-        ),
-      );
+    const { data } = await firstValueFrom(
+      this.http.post('https://accept.paymob.com/v1/intention/', payload, {
+        headers: { Authorization: `Token ${secretKey}` },
+      }),
+    );
 
-      if (!data?.client_secret) {
-        throw new BadRequestException('Paymob did not return client secret');
-      }
-
-      const paymentUrl = `https://accept.paymob.com/unifiedcheckout/?publicKey=${publicKey}&clientSecret=${data.client_secret}`;
-
-      return {
-        paymentUrl,
-        paymobIntentionId: data.id,
-      };
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        this.logger.error(
-          'Paymob Intention Error:',
-          error.response?.data || error.message,
-        );
-        throw new BadRequestException(
-          `Failed to create payment intention: ${
-            (error.response?.data as { message?: string })?.message ||
-            error.message
-          }`,
-        );
-      }
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('Paymob Intention Error:', message);
-      throw new BadRequestException(
-        `Failed to create payment intention: ${message}`,
-      );
+    if (!data?.client_secret) {
+      throw new BadRequestException('Invalid Paymob response');
     }
+
+    return {
+      paymentUrl: `https://accept.paymob.com/unifiedcheckout/?publicKey=${publicKey}&clientSecret=${data.client_secret}`,
+      paymobIntentionId: data.id,
+    };
   }
 
-  /**
-   * Verifies the HMAC signature from Paymob webhook.
-   */
-  verifyHmac(payload: PaymobWebhookPayload, receivedHmac: string): boolean {
-    const secret = this.config.getOrThrow<string>('PAYMOB_HMAC');
+  // =========================
+  // MAIN VERIFY ENTRY
+  // =========================
+  verifyHmac(payload: any, receivedHmac: string): boolean {
+    const obj = payload?.obj;
+    if (!obj || !receivedHmac) return false;
 
-    if (!receivedHmac) return false;
+    const secret = this.config.getOrThrow<string>('PAYMOB_HMAC').trim();
 
-    const { obj } = payload;
+    // 🔥 Detect type correctly (Paymob reality)
+    const isCardToken = !!obj.masked_pan && !!obj.token;
 
-    // Standard Paymob Transaction HMAC concatenation order
-    const concatenatedString = [
+    const fields = isCardToken
+      ? this.getCardTokenFields(obj)
+      : this.getTransactionFields(obj);
+
+    const concatenated = fields.map((v) => this.normalize(v)).join('');
+
+    const generated = createHmac('sha512', secret)
+      .update(concatenated, 'utf8')
+      .digest('hex');
+
+    // this.logger.debug('==== PAYMOB HMAC DEBUG ====');
+    // this.logger.debug(`CONCAT: ${concatenated}`);
+    // this.logger.debug(`GENERATED: ${generated}`);
+    // this.logger.debug(`RECEIVED: ${receivedHmac}`);
+
+    const genBuf = Buffer.from(generated, 'hex');
+    const recBuf = Buffer.from(receivedHmac, 'hex');
+
+    if (genBuf.length !== recBuf.length) return false;
+
+    return timingSafeEqual(genBuf, recBuf);
+  }
+
+  // =========================
+  // TRANSACTION CALLBACK (EXACT ORDER FROM DOCS)
+  // =========================
+  private getTransactionFields(obj: any) {
+    return [
       obj.amount_cents,
       obj.created_at,
       obj.currency,
@@ -132,20 +113,43 @@ export class PaymobService {
       obj.is_standalone_payment,
       obj.is_voided,
       obj.order?.id,
+      obj.owner,
       obj.pending,
-      obj.source_data?.pan ?? '',
-      obj.source_data?.sub_type ?? '',
-      obj.source_data?.type ?? '',
+      obj.source_data?.pan,
+      obj.source_data?.sub_type,
+      obj.source_data?.type,
       obj.success,
-    ].join('');
+    ];
+  }
 
-    const generatedHmac = createHmac('sha512', secret)
-      .update(concatenatedString)
-      .digest('hex');
+  // =========================
+  // CARD TOKEN CALLBACK (EXACT ORDER FROM DOCS)
+  // =========================
+  private getCardTokenFields(obj: any) {
+    return [
+      obj.card_subtype,
+      obj.created_at,
+      obj.email,
+      obj.id,
+      obj.masked_pan,
+      obj.merchant_id,
+      obj.order_id,
+      obj.token,
+    ];
+  }
 
-    return timingSafeEqual(
-      Buffer.from(generatedHmac),
-      Buffer.from(receivedHmac),
-    );
+  // =========================
+  // NORMALIZER (STRICT)
+  // =========================
+  private normalize(v: any): string {
+    if (v === null || v === undefined) return '';
+
+    if (typeof v === 'boolean') return v ? 'true' : 'false';
+
+    if (typeof v === 'number') return String(v); // ❗ NO truncation (Paymob depends on exact value)
+
+    if (typeof v === 'object') return '';
+
+    return String(v).trim();
   }
 }

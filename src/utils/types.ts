@@ -17,38 +17,65 @@ export type CheckoutResponse = {
 };
 export interface PaymobWebhookPayload {
   type: string;
+
   obj: {
     id: number;
+
     pending: boolean;
-    success: boolean;
+
     amount_cents: number;
-    currency: string;
-    created_at: string;
-    error_occured: boolean;
-    has_parent_transaction: boolean;
-    integration_id: number;
-    is_3d_secure: boolean;
+
+    success: boolean;
+
     is_auth: boolean;
+
     is_capture: boolean;
-    is_refunded: boolean;
+
     is_standalone_payment: boolean;
+
     is_voided: boolean;
-    order: {
-      id: number;
-      merchant_order_id: string | null;
-    };
-    source_data: {
-      pan: string;
-      sub_type: string;
-      type: string;
-    };
-    data: {
-      message: string;
-    };
+
+    is_refunded: boolean;
+
+    is_3d_secure: boolean;
+
+    integration_id: number;
+
+    created_at: string;
+    is_captured?: boolean;
+    currency: string;
+
+    error_occured: boolean;
+
+    has_parent_transaction: boolean;
+
     special_reference?: string;
+
+    data?: {
+      message?: string;
+    };
+
+    order?: {
+      id: number;
+
+      merchant_order_id?: string;
+    };
+
+    source_data?: {
+      pan?: string;
+
+      sub_type?: string;
+
+      type?: string;
+    };
+
+    payment_key_claims?: {
+      extra?: {
+        merchant_order_id?: string;
+      };
+    };
   };
 }
-
 export interface BillingData {
   first_name: string;
   last_name: string;

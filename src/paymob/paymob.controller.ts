@@ -2,15 +2,15 @@ import {
   Controller,
   Post,
   Body,
-  Headers,
-  BadRequestException,
+  Query,
   HttpCode,
   HttpStatus,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
+
 import { PaymobService } from './paymob.service';
 import { OrdersService } from 'src/orders/orders.service';
-import type { PaymobWebhookPayload } from 'src/utils/types';
 
 @Controller('paymob')
 export class PaymobController {
@@ -21,58 +21,52 @@ export class PaymobController {
     private readonly ordersService: OrdersService,
   ) {}
 
-  /**
-   * Paymob Webhook: Handles transaction status updates.
-   */
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
-  async webhook(
-    @Body() payload: PaymobWebhookPayload,
-    @Headers('hmac') hmac: string,
-  ) {
-    this.logger.log(
-      `Received Paymob webhook for transaction ${payload.obj.id}`,
-    );
+  async webhook(@Body() payload: any, @Query('hmac') hmac: string) {
+    const obj = payload?.obj;
 
-    // 1. Verify HMAC
+    this.logger.debug(`Webhook received: ${obj?.id}`);
+
+    // =========================
+    // HMAC CHECK
+    // =========================
     const isValid = this.paymobService.verifyHmac(payload, hmac);
+
     if (!isValid) {
-      this.logger.error(`Invalid HMAC for transaction ${payload.obj.id}`);
+      this.logger.error(`Invalid HMAC for txn ${obj?.id}`);
       throw new BadRequestException('Invalid HMAC');
     }
 
-    // 2. Extract Order ID
-    // We used special_reference in createPaymentIntention,
-    // it usually comes back in obj.special_reference or obj.order.merchant_order_id
-    const orderIdRaw =
-      payload.obj.special_reference || payload.obj.order?.merchant_order_id;
+    // =========================
+    // ORDER ID extraction (FIXED priority)
+    // =========================
+    const orderId =
+      obj?.special_reference ||
+      obj?.order?.merchant_order_id ||
+      obj?.payment_key_claims?.extra?.merchant_order_id ||
+      obj?.data?.merchant_txn_ref;
 
-    if (!orderIdRaw) {
-      this.logger.warn(
-        `No order reference found in payload for transaction ${payload.obj.id}`,
-      );
-      return { received: true }; // Still return 200 to Paymob
+    if (!orderId) {
+      this.logger.warn(`No order reference for txn ${obj?.id}`);
+      return { received: true };
     }
 
-    const orderId = Number(orderIdRaw);
+    const id = Number(orderId);
 
-    // 3. Handle Payment Status
-    const { success, pending } = payload.obj;
-
-    if (success === true && pending === false) {
-      this.logger.log(`Payment successful for order ${orderId}`);
-      await this.ordersService.handleSuccessfulPayment(orderId);
-    } else if (success === false && pending === false) {
-      this.logger.warn(
-        `Payment failed for order ${orderId}: ${payload.obj.data?.message}`,
-      );
-      await this.ordersService.handleFailedPayment(orderId);
+    // =========================
+    // STATUS HANDLING
+    // =========================
+    if (obj.success === true && obj.pending === false) {
+      await this.ordersService.handleSuccessfulPayment(id);
+      this.logger.log(`Payment SUCCESS order ${id}`);
+    } else if (obj.success === false && obj.pending === false) {
+      await this.ordersService.handleFailedPayment(id);
+      this.logger.warn(`Payment FAILED order ${id}`);
     } else {
-      this.logger.log(`Payment pending for order ${orderId}`);
+      this.logger.log(`Payment PENDING order ${id}`);
     }
 
-    return {
-      received: true,
-    };
+    return { received: true };
   }
 }
