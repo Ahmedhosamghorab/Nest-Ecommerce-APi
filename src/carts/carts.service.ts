@@ -16,6 +16,12 @@ import type { MessageResponse } from 'src/utils/types';
 
 @Injectable()
 export class CartsService {
+/**
+ * Service constructor injecting dependencies.
+ * @param dataSource - TypeORM DataSource.
+ * @param cartRepository - Repository for Cart entities.
+ * @param cartItemRepository - Repository for CartItem entities.
+ */
   constructor(
     private readonly dataSource: DataSource,
     @InjectRepository(Cart)
@@ -28,6 +34,10 @@ export class CartsService {
    * Event handler: automatically creates a cart when a user verifies their account.
    * Idempotent — silently skips if the cart already exists.
    */
+/**
+ * Event handler: automatically creates a cart when a user verifies their account.
+ * Idempotent – silently skips if the cart already exists.
+ */
   @OnEvent('user.verified')
   public async handleUserVerified(event: UserVerifiedEvent): Promise<void> {
     const existingCart = await this.cartRepository.findOne({
@@ -45,6 +55,11 @@ export class CartsService {
    * @param userId - The ID of the authenticated user.
    * @returns The cart entity with cartItems and product details.
    */
+/**
+ * Retrieves the authenticated user's cart with items and product details.
+ * @param userId - ID of the authenticated user.
+ * @returns The Cart entity.
+ */
   public async getCart(userId: number): Promise<Cart> {
     const cart = await this.cartRepository.findOne({
       where: { user: { id: userId } },
@@ -66,6 +81,13 @@ export class CartsService {
    * @param dto - Contains the quantity to add.
    * @returns A success message.
    */
+/**
+ * Adds a product to the user's cart, creating a new cart item or updating quantity.
+ * @param userId - ID of the authenticated user.
+ * @param productId - ID of the product to add.
+ * @param dto - DTO containing quantity.
+ * @returns Success message.
+ */
   public async addToCart(
     userId: number,
     productId: number,
@@ -129,6 +151,13 @@ export class CartsService {
    * @param dto - Contains the new quantity.
    * @returns A success message.
    */
+/**
+ * Updates the quantity of a specific cart item.
+ * @param userId - ID of the authenticated user.
+ * @param itemId - ID of the cart item.
+ * @param dto - DTO with new quantity.
+ * @returns Success message.
+ */
   public async updateItemQuantity(
     userId: number,
     itemId: number,
@@ -173,6 +202,12 @@ export class CartsService {
    * @param itemId - The ID of the cart item to remove.
    * @returns A success message.
    */
+/**
+ * Removes a specific item from the user's cart.
+ * @param userId - ID of the authenticated user.
+ * @param itemId - ID of the cart item to remove.
+ * @returns Success message.
+ */
   public async removeItem(
     userId: number,
     itemId: number,
@@ -197,6 +232,11 @@ export class CartsService {
    * @param userId - The ID of the authenticated user.
    * @returns A success message.
    */
+/**
+ * Clears all items from the user's cart.
+ * @param userId - ID of the authenticated user.
+ * @returns Success message.
+ */
   public async clearCart(userId: number): Promise<MessageResponse> {
     const cart = await this.cartRepository.findOne({
       where: { user: { id: userId } },
