@@ -1,8 +1,10 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './user.entity';
@@ -12,7 +14,7 @@ import { LoginDto } from './dtos/login.dto';
 import type { AccessToken, JWTPayload, MessageResponse } from 'src/utils/types';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { UserType } from 'src/utils/enums';
-import { AuthProvider } from './auth.provider';
+import { AuthService } from 'src/auth/auth.service';
 import { join } from 'node:path';
 import { unlinkSync } from 'node:fs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -26,7 +28,8 @@ export class UserService {
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     private readonly eventEmitter: EventEmitter2,
-    private readonly authService: AuthProvider,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
   ) {}
 
   /**
@@ -93,7 +96,10 @@ export class UserService {
    * @returns A promise that resolves to a success message.
    * @throws ForbiddenException if the requester does not have permission to delete the account.
    */
-  public async delete(id: number, payload: JWTPayload): Promise<MessageResponse> {
+  public async delete(
+    id: number,
+    payload: JWTPayload,
+  ): Promise<MessageResponse> {
     const user = await this.getCurrentUser(id);
     if (user.id === payload.id || payload.userType === UserType.ADMIN) {
       await this.userRepository.remove(user);
@@ -108,7 +114,10 @@ export class UserService {
    * @param newProfileImage - The filename of the new profile image.
    * @returns A promise that resolves to the updated User entity.
    */
-  public async setProfileImage(userId: number, newProfileImage: string): Promise<User> {
+  public async setProfileImage(
+    userId: number,
+    newProfileImage: string,
+  ): Promise<User> {
     const user = await this.getCurrentUser(userId);
     if (user.profileImage !== null) {
       await this.deleteProfileImage(userId);
@@ -134,8 +143,11 @@ export class UserService {
     try {
       unlinkSync(imageFilePath);
     } catch (error) {
-       // Log error but continue to clear DB record if file is missing
-       console.error(`Failed to delete profile image file: ${imageFilePath}`, error);
+      // Log error but continue to clear DB record if file is missing
+      console.error(
+        `Failed to delete profile image file: ${imageFilePath}`,
+        error,
+      );
     }
     user.profileImage = null;
     return this.userRepository.save(user);
@@ -149,7 +161,10 @@ export class UserService {
    * @throws NotFoundException if no token is found for the user.
    * @throws BadRequestException if the provided token is invalid.
    */
-  public async verifyEmail(userId: number, verificationToken: string): Promise<MessageResponse> {
+  public async verifyEmail(
+    userId: number,
+    verificationToken: string,
+  ): Promise<MessageResponse> {
     const user = await this.getCurrentUser(userId);
     if (user.verificationToken === null)
       throw new NotFoundException('no token found');

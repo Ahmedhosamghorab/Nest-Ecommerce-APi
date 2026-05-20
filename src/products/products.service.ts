@@ -9,6 +9,7 @@ import { ProductImage } from './product_image.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { MessageResponse } from 'src/utils/types';
+import { Category } from 'src/categories/entities/category.entity';
 
 /**
  * Service responsible for managing products, including creation, retrieval, and updates.
@@ -20,6 +21,8 @@ export class ProductService {
     private readonly productRepositry: Repository<Product>,
     @InjectRepository(ProductImage)
     private readonly productImageRepositry: Repository<ProductImage>,
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
     private readonly userService: UserService,
   ) {}
 
@@ -29,31 +32,54 @@ export class ProductService {
    * @param userId - The ID of the user who owns the product.
    * @returns A promise that resolves to the newly created product.
    */
-  public async createNewProduct(dto: CreateProductDto, userId: number): Promise<Product> {
+  public async createNewProduct(
+    dto: CreateProductDto,
+    userId: number,
+  ): Promise<Product> {
     const user = await this.userService.getCurrentUser(userId);
+    let category: Category | null = null;
+
+    if (dto.categoryId) {
+      category = await this.categoryRepository.findOne({
+        where: { id: dto.categoryId },
+      });
+      if (!category) throw new NotFoundException('Category not found');
+    }
+
     const newProduct = this.productRepositry.create({
       ...dto,
       title: dto.title.toLowerCase(),
       user,
+      category,
     });
     return this.productRepositry.save(newProduct);
   }
 
   /**
-   * Retrieves a list of all products, with optional filters for title and price range.
+   * Retrieves a list of all products, with optional filters for title, price range, and category.
    * @param title - Optional search term to filter products by title (case-insensitive).
    * @param minPrice - Optional minimum price to filter products.
    * @param maxPrice - Optional maximum price to filter products.
+   * @param categoryId - Optional category ID to filter products.
    * @returns A promise that resolves to an array of products matching the criteria.
    */
-  public getAll(title?: string, minPrice?: string, maxPrice?: string): Promise<Product[]> {
+  public getAll(
+    title?: string,
+    minPrice?: string,
+    maxPrice?: string,
+    categoryId?: number,
+  ): Promise<Product[]> {
     const filters: FindOptionsWhere<Product> = {
       ...(title ? { title: Like(`%${title.toLowerCase()}%`) } : {}),
       ...(minPrice && maxPrice
         ? { price: Between(parseInt(minPrice, 10), parseInt(maxPrice, 10)) }
         : {}),
+      ...(categoryId ? { category: { id: categoryId } } : {}),
     };
-    return this.productRepositry.find({ where: filters });
+    return this.productRepositry.find({
+      where: filters,
+      relations: ['category'],
+    });
   }
 
   /**
@@ -63,7 +89,10 @@ export class ProductService {
    * @throws NotFoundException if the product does not exist.
    */
   public async getOneBy(id: number): Promise<Product> {
-    const product = await this.productRepositry.findOne({ where: { id } });
+    const product = await this.productRepositry.findOne({
+      where: { id },
+      relations: ['category'],
+    });
     if (!product) throw new NotFoundException('Product not found');
     return product;
   }
@@ -80,6 +109,19 @@ export class ProductService {
     product.price = dto.price ?? product.price;
     product.quantity = dto.quantity ?? product.quantity;
     product.description = dto.description ?? product.description;
+
+    if (dto.categoryId !== undefined) {
+      if (dto.categoryId === null) {
+        product.category = null;
+      } else {
+        const category = await this.categoryRepository.findOne({
+          where: { id: dto.categoryId },
+        });
+        if (!category) throw new NotFoundException('Category not found');
+        product.category = category;
+      }
+    }
+
     return this.productRepositry.save(product);
   }
 
@@ -104,7 +146,10 @@ export class ProductService {
     return { message: 'product deleted successfully' };
   }
 
-  public async addProductImage(id: number, image: string): Promise<MessageResponse> {
+  public async addProductImage(
+    id: number,
+    image: string,
+  ): Promise<MessageResponse> {
     const product = await this.getOneBy(id);
     const productImage = this.productImageRepositry.create({
       image,
@@ -141,7 +186,9 @@ export class ProductService {
    * @param productId - The ID of the product whose images should be deleted.
    * @returns A promise that resolves to a success message.
    */
-  public async deleteProductImages(productId: number): Promise<MessageResponse> {
+  public async deleteProductImages(
+    productId: number,
+  ): Promise<MessageResponse> {
     const product = await this.getOneBy(productId);
     const images = await this.productImageRepositry.find({
       where: { product: { id: product.id } },

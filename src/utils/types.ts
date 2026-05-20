@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { UserType } from './enums';
 
 export type JWTPayload = {
@@ -5,19 +6,24 @@ export type JWTPayload = {
   userType: UserType;
 };
 
-export type AccessToken = {
+export class AccessToken {
+  @ApiProperty()
   accessToken: string;
-};
-export type MessageResponse = {
-  message: string;
-};
-export type CheckoutResponse = {
-  paymentUrl: string;
-  orderId: number;
-};
-export interface PaymobWebhookPayload {
-  type: string;
+}
 
+export class MessageResponse {
+  @ApiProperty()
+  message: string;
+}
+
+export class CheckoutResponse {
+  @ApiProperty()
+  paymentUrl: string;
+
+  @ApiProperty()
+  orderId: number;
+}
+export interface PaymobWebhookPayload {
   obj: {
     id: number;
 

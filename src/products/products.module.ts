@@ -4,15 +4,16 @@ import { ProductService } from './products.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Product } from './product.entity';
 import { UsersModule } from 'src/users/users.module';
-import { JwtModule } from '@nestjs/jwt';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { ProductImage } from './product_image.entity';
+import { Category } from 'src/categories/entities/category.entity';
+import { AuthModule } from 'src/auth/auth.module';
 @Module({
   controllers: [ProductsController],
   providers: [ProductService],
   imports: [
-    TypeOrmModule.forFeature([Product, ProductImage]),
+    TypeOrmModule.forFeature([Product, ProductImage, Category]),
     MulterModule.register({
       storage: diskStorage({
         destination: './images/products',
@@ -31,7 +32,7 @@ import { ProductImage } from './product_image.entity';
       limits: { fileSize: 1024 * 1024 * 2 },
     }),
     UsersModule,
-    JwtModule,
+    AuthModule,
   ],
   exports: [ProductService],
 })

@@ -1,15 +1,12 @@
-import { Module, BadRequestException } from '@nestjs/common';
+import { Module, BadRequestException, forwardRef } from '@nestjs/common';
 import { UsersController } from './users.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './user.entity';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { StringValue } from 'ms';
-import { AuthProvider } from './auth.provider';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { MailModule } from 'src/mail/mail.module';
 import { UserService } from './users.service';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
   controllers: [UsersController],
@@ -33,20 +30,9 @@ import { UserService } from './users.service';
       },
       limits: { fileSize: 1024 * 1024 * 2 },
     }),
-    JwtModule.registerAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        return {
-          global: true,
-          secret: config.get<string>('JWT_SECRET'),
-          signOptions: {
-            expiresIn: config.get<StringValue>('JWT_EXPIRES_IN'),
-          },
-        };
-      },
-    }),
+    forwardRef(() => AuthModule),
   ],
-  providers: [UserService, AuthProvider],
-  exports: [UserService],
+  providers: [UserService],
+  exports: [UserService, TypeOrmModule],
 })
 export class UsersModule {}

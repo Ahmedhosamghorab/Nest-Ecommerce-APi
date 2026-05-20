@@ -1,21 +1,33 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { OrdersService } from 'src/orders/orders.service';
 
 @Injectable()
 export class PaymobService {
   // private readonly logger = new Logger(PaymobService.name);
 
+  /**
+   * Service responsible for handling Paymob payment operations.
+   * @param http - HttpService for making external API calls.
+   * @param config - ConfigService for environment variables.
+   */
   constructor(
     private readonly http: HttpService,
     private readonly config: ConfigService,
+    @Inject(forwardRef(() => OrdersService))
+    private readonly ordersService: OrdersService,
   ) {}
 
-  // =========================
-  // CREATE INTENTION
-  // =========================
+  /**
+   * Creates a payment intention with Paymob.
+   * @param amount - Amount to charge (in currency units).
+   * @param orderId - Internal order ID to associate with the payment.
+   * @param billingData - Customer billing information.
+   * @returns Object containing payment URL and Paymob intention ID.
+   */
   async createPaymentIntention(
     amount: number,
     orderId: number,
@@ -62,6 +74,12 @@ export class PaymobService {
   // =========================
   // MAIN VERIFY ENTRY
   // =========================
+  /**
+   * Verifies the HMAC signature sent by Paymob.
+   * @param payload - The webhook payload from Paymob.
+   * @param receivedHmac - HMAC string received from Paymob.
+   * @returns True if verification succeeds, otherwise false.
+   */
   verifyHmac(payload: any, receivedHmac: string): boolean {
     const obj = payload?.obj;
     if (!obj || !receivedHmac) return false;
@@ -97,7 +115,12 @@ export class PaymobService {
   // =========================
   // TRANSACTION CALLBACK (EXACT ORDER FROM DOCS)
   // =========================
-  private getTransactionFields(obj: any) {
+  /**
+   * Extracts fields from a transaction payload for HMAC verification.
+   * @param obj - Transaction object from Paymob webhook.
+   * @returns Array of field values in the required order.
+   */
+  private getTransactionFields(obj: any): any[] {
     return [
       obj.amount_cents,
       obj.created_at,
@@ -125,7 +148,12 @@ export class PaymobService {
   // =========================
   // CARD TOKEN CALLBACK (EXACT ORDER FROM DOCS)
   // =========================
-  private getCardTokenFields(obj: any) {
+  /**
+   * Extracts fields from a card token payload for HMAC verification.
+   * @param obj - Card token object from Paymob webhook.
+   * @returns Array of field values in the required order.
+   */
+  private getCardTokenFields(obj: any): any[] {
     return [
       obj.card_subtype,
       obj.created_at,
@@ -138,9 +166,43 @@ export class PaymobService {
     ];
   }
 
+  async hook(payload: any, hmac: string) {
+    const obj = payload?.obj;
+    const isValid = this.verifyHmac(payload, hmac);
+    if (!isValid) {
+      // this.logger.error(`Invalid HMAC for txn ${obj?.id}`);
+      throw new BadRequestException('Invalid HMAC');
+    }
+    const orderId =
+      obj?.special_reference ||
+      obj?.order?.merchant_order_id ||
+      obj?.payment_key_claims?.extra?.merchant_order_id ||
+      obj?.data?.merchant_txn_ref;
+
+    if (!orderId) {
+      return { received: true };
+    }
+
+    const id = Number(orderId);
+    if (obj.success === true && obj.pending === false) {
+      await this.ordersService.handleSuccessfulPayment(id);
+    } else if (obj.success === false && obj.pending === false) {
+      await this.ordersService.handleFailedPayment(id);
+    } else {
+      // this.logger.log(`Payment PENDING order ${id}`);
+    }
+
+    return { received: true };
+  }
+
   // =========================
   // NORMALIZER (STRICT)
   // =========================
+  /**
+   * Normalizes a value for HMAC concatenation.
+   * @param v - Value to normalize.
+   * @returns Normalized string representation.
+   */
   private normalize(v: any): string {
     if (v === null || v === undefined) return '';
 

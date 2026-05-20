@@ -5,14 +5,14 @@ import { OrdersController } from './orders.controller';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { CartsModule } from 'src/carts/carts.module';
-import { JwtModule } from '@nestjs/jwt';
+import { AuthModule } from 'src/auth/auth.module';
 import { PaymobModule } from 'src/paymob/paymob.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Order, OrderItem]),
     CartsModule,
-    JwtModule,
+    AuthModule,
     forwardRef(() => PaymobModule),
   ],
   controllers: [OrdersController],

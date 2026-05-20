@@ -15,9 +15,19 @@ import { Product } from 'src/products/product.entity';
 import type { BillingData, CheckoutResponse } from 'src/utils/types';
 
 @Injectable()
+/**
+ * Service handling order operations, checkout flow, and payment callbacks.
+ */
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
 
+  /**
+   * Service constructor injecting dependencies.
+   * @param dataSource - TypeORM data source.
+   * @param orderRepository - Repository for Order entities.
+   * @param cartsService - Service handling cart operations.
+   * @param paymobService - Service handling Paymob payments.
+   */
   constructor(
     private readonly dataSource: DataSource,
     @InjectRepository(Order)
@@ -25,6 +35,36 @@ export class OrdersService {
     private readonly cartsService: CartsService,
     private readonly paymobService: PaymobService,
   ) {}
+
+  /**
+   * Retrieve all orders belonging to a user.
+   * @param userId - ID of the user whose orders are fetched.
+   * @returns A promise resolving to an array of Order entities.
+   */
+  async getAll(userId: number): Promise<Order[]> {
+    return this.orderRepository.find({
+      where: { user: { id: userId } },
+      relations: ['orderItems', 'orderItems.product'],
+    });
+  }
+
+  /**
+   * Retrieve a specific order for a user.
+   * @param userId - ID of the user.
+   * @param orderId - ID of the order to retrieve.
+   * @returns The Order entity if found.
+   * @throws NotFoundException if the order does not exist.
+   */
+  async getOneBy(userId: number, orderId: number): Promise<Order> {
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId, user: { id: userId } },
+      relations: ['orderItems', 'orderItems.product'],
+    });
+    if (!order) {
+      throw new NotFoundException(`Order ${orderId} not found`);
+    }
+    return order;
+  }
 
   /**
    * Main checkout flow:
@@ -118,6 +158,11 @@ export class OrdersService {
    * 3. Update order status to PAID.
    * 4. Clear user cart.
    */
+  /**
+   * Handles successful payment webhook.
+   * Performs idempotency check, stock deduction, order status update, and cart clearance.
+   * @param orderId - ID of the order that was paid.
+   */
   async handleSuccessfulPayment(orderId: number): Promise<void> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -202,6 +247,11 @@ export class OrdersService {
 
   /**
    * Handle failed payment webhook
+   */
+  /**
+   * Handles failed payment webhook.
+   * Marks the order as FAILED if it is still pending.
+   * @param orderId - ID of the order that failed payment.
    */
   async handleFailedPayment(orderId: number): Promise<void> {
     const order = await this.orderRepository.findOne({

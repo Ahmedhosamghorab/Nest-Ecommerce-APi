@@ -18,6 +18,9 @@ import { OrdersModule } from './orders/orders.module';
 import { PaymobModule } from './paymob/paymob.module';
 import { Order } from './orders/entities/order.entity';
 import { OrderItem } from './orders/entities/order-item.entity';
+import { CategoriesModule } from './categories/categories.module';
+import { Category } from './categories/entities/category.entity';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -41,6 +44,7 @@ import { OrderItem } from './orders/entities/order-item.entity';
             CartItem,
             Order,
             OrderItem,
+            Category,
           ],
         };
       },
@@ -54,6 +58,8 @@ import { OrderItem } from './orders/entities/order-item.entity';
     CartsModule,
     OrdersModule,
     PaymobModule,
+    CategoriesModule,
+    AuthModule,
     EventEmitterModule.forRoot(),
   ],
   exports: [],

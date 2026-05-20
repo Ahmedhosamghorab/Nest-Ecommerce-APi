@@ -13,25 +13,46 @@ import {
   UploadedFiles,
   BadRequestException,
   Res,
+  HttpStatus,
 } from '@nestjs/common';
 import { UpdateProductDto } from './dtos/update-product.dto';
 import { CreateProductDto } from './dtos/create-product.dto';
 import { ProductService } from './products.service';
-import { AuthRolesGuard } from 'src/users/guards/auth-roles.guard';
+import { AuthRolesGuard } from 'src/auth/guards/auth-roles.guard';
 import { Roles } from 'src/users/decorators/user-role.decorator';
 import { UserType } from 'src/utils/enums';
-import type { JWTPayload, MessageResponse } from 'src/utils/types';
+import { MessageResponse } from 'src/utils/types';
+import type { JWTPayload } from 'src/utils/types';
 import { CurrentUser } from 'src/users/decorators/current-user.decorator';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { AuthGuard } from 'src/users/guards/auth.guard';
+import { AuthGuard } from 'src/auth/guards/auth.guard';
 import type { Response } from 'express';
 import { Product } from './product.entity';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
-@Controller('api/products')
+@ApiTags('Products')
+@Controller('products')
 export class ProductsController {
   constructor(private readonly productService: ProductService) {}
 
-  // Post: ~/api/products
+  @ApiOperation({ summary: 'Create a new product (Admin only)' })
+  @ApiBearerAuth()
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Product created successfully.',
+    type: Product,
+  })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Forbidden.' })
+  @ApiBody({ type: CreateProductDto })
   @Post()
   @UseGuards(AuthRolesGuard)
   @Roles(UserType.ADMIN)
@@ -42,23 +63,56 @@ export class ProductsController {
     return this.productService.createNewProduct(body, payload.id);
   }
 
-  // Get: ~/api/products
+  @ApiOperation({ summary: 'Get all products' })
+  @ApiQuery({ name: 'title', required: false, type: String })
+  @ApiQuery({ name: 'minPrice', required: false, type: String })
+  @ApiQuery({ name: 'maxPrice', required: false, type: String })
+  @ApiQuery({ name: 'categoryId', required: false, type: Number })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Products retrieved successfully.',
+    type: [Product],
+  })
   @Get()
   public getAllProducts(
     @Query('title') title?: string,
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
+    @Query('categoryId') categoryId?: string,
   ): Promise<Product[]> {
-    return this.productService.getAll(title, minPrice, maxPrice);
+    return this.productService.getAll(
+      title,
+      minPrice,
+      maxPrice,
+      categoryId ? parseInt(categoryId, 10) : undefined,
+    );
   }
 
-  // Get: ~/api/products/:id
+  @ApiOperation({ summary: 'Get a single product by ID' })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Product retrieved successfully.',
+    type: Product,
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Product not found.' })
   @Get(':id')
-  public getSingleProduct(@Param('id', ParseIntPipe) id: number): Promise<Product> {
+  public getSingleProduct(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<Product> {
     return this.productService.getOneBy(id);
   }
 
-  // Put: ~/api/products/:id
+  @ApiOperation({ summary: 'Update a product (Admin only)' })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Product updated successfully.',
+    type: Product,
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Product not found.' })
+  @ApiBody({ type: UpdateProductDto })
   @Put(':id')
   @UseGuards(AuthRolesGuard)
   @Roles(UserType.ADMIN)
@@ -69,7 +123,29 @@ export class ProductsController {
     return this.productService.update(id, body);
   }
 
-  // POST: ~/api/products/:id/upload-images
+  @ApiOperation({ summary: 'Upload product images (Admin only)' })
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        'product-images': {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Images uploaded successfully.',
+    type: [MessageResponse],
+  })
   @Post(':id/upload-images')
   @UseGuards(AuthRolesGuard)
   @Roles(UserType.ADMIN)
@@ -90,34 +166,66 @@ export class ProductsController {
     return results;
   }
 
-  // Delete: ~/api/products/:id
+  @ApiOperation({ summary: 'Delete a product (Admin only)' })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Product deleted successfully.',
+    type: MessageResponse,
+  })
   @Delete(':id')
   @UseGuards(AuthRolesGuard)
   @Roles(UserType.ADMIN)
-  public deleteProduct(@Param('id', ParseIntPipe) id: number): Promise<MessageResponse> {
+  public deleteProduct(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<MessageResponse> {
     return this.productService.delete(id);
   }
 
-  // Delete: ~/api/products/images/:image
+  @ApiOperation({ summary: 'Delete a product image (Admin only)' })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'image', type: 'string' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Image deleted successfully.',
+    type: MessageResponse,
+  })
   @Delete('images/:image')
   @UseGuards(AuthRolesGuard)
   @Roles(UserType.ADMIN)
-  public deleteProductImage(@Param('image') image: string): Promise<MessageResponse> {
+  public deleteProductImage(
+    @Param('image') image: string,
+  ): Promise<MessageResponse> {
     return this.productService.deleteProductImage(image);
   }
 
-  // Delete: ~/api/products/:id/images
+  @ApiOperation({ summary: 'Delete all images for a product (Admin only)' })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'All images deleted successfully.',
+    type: MessageResponse,
+  })
   @Delete(':id/images')
   @UseGuards(AuthRolesGuard)
   @Roles(UserType.ADMIN)
-  public deleteAllProductImages(@Param('id', ParseIntPipe) id: number): Promise<MessageResponse> {
+  public deleteAllProductImages(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<MessageResponse> {
     return this.productService.deleteProductImages(id);
   }
 
-  //GET: ~/api/product/images/:image
+  @ApiOperation({ summary: 'Show product image' })
+  @ApiParam({ name: 'image', type: 'string' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Image returned.' })
   @Get('images/:image')
   @UseGuards(AuthGuard)
-  public showProfileImage(@Param('image') image: string, @Res() res: Response): void {
+  public showProfileImage(
+    @Param('image') image: string,
+    @Res() res: Response,
+  ): void {
     return res.sendFile(image, { root: 'images/products' });
   }
 }
